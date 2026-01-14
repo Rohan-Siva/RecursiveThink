@@ -1,6 +1,6 @@
 # Agentic Recursive Reasoning System
 
-A research-grade, minimal, extensible Python codebase for agentic recursive reasoning using frozen open-source LLMs.
+A research-grade, minimal, extensible Python codebase for agentic recursive reasoning using Mistral API.
 
 ## Overview
 
@@ -18,7 +18,7 @@ main.py          CLI entry point
     |
 controller.py    Recursive reasoning loop
     |
-    +-- model.py      HuggingFace LLM wrapper
+    +-- model.py      Mistral API wrapper
     +-- prompt.py     System prompt templates
     +-- parser.py     JSON output validation
     +-- state.py      ThoughtState dataclass
@@ -28,7 +28,8 @@ controller.py    Recursive reasoning loop
 ## Installation
 
 ```bash
-pip install torch transformers
+pip install mistralai
+export MISTRAL_API_KEY="your-api-key"
 ```
 
 ## Usage
@@ -40,8 +41,8 @@ python main.py -p "What is 2 + 2?"
 # With custom settings
 python main.py -p "Explain recursion" --max-steps 5 --threshold 0.85
 
-# Use different model
-python main.py -p "Solve x^2 = 16" --model mistralai/Mistral-7B-Instruct-v0.1
+# Use different Mistral model
+python main.py -p "Solve x^2 = 16" --model mistral-small-latest
 ```
 
 ## CLI Options
@@ -49,11 +50,10 @@ python main.py -p "Solve x^2 = 16" --model mistralai/Mistral-7B-Instruct-v0.1
 | Option | Default | Description |
 |--------|---------|-------------|
 | -p, --problem | (required) | Problem to solve |
-| --model | microsoft/phi-2 | HuggingFace model name |
+| --model | mistral-large-latest | Mistral model name |
 | --max-steps | 10 | Maximum reasoning steps |
 | --threshold | 0.9 | Confidence threshold to stop |
 | --log-file | reasoning.jsonl | Output log path |
-| --device | auto | Device (cuda/cpu/mps) |
 
 ## Stopping Conditions
 
