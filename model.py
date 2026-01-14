@@ -1,76 +1,45 @@
 """
-model.py - LLM Wrapper using HuggingFace Transformers
+model.py - LLM Wrapper using Mistral API
 """
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import os
 from typing import Optional
+from mistralai import Mistral
 
 
 class ModelWrapper:
     """
-    Wrapper for open-source LLMs using HuggingFace Transformers.
+    Wrapper for Mistral API.
     Provides a simple generate() interface for the controller.
     """
     
     def __init__(
         self,
-        model_name: str = "microsoft/phi-2",
-        device: Optional[str] = None,
-        max_new_tokens: int = 1024,
-        load_in_8bit: bool = False
+        model_name: str = "mistral-large-latest",
+        max_tokens: int = 1024,
+        api_key: Optional[str] = None
     ):
         """
         Initialize the model wrapper.
         
         Args:
-            model_name: HuggingFace model identifier
-            device: Device to run on (cuda/cpu/mps, auto-detect if None)
-            max_new_tokens: Maximum tokens to generate
-            load_in_8bit: Whether to use 8-bit quantization
+            model_name: Mistral model identifier (default: mistral-large-latest)
+            max_tokens: Maximum tokens to generate
+            api_key: Mistral API key (defaults to MISTRAL_API_KEY env var)
         """
         self.model_name = model_name
-        self.max_new_tokens = max_new_tokens
+        self.max_tokens = max_tokens
         
-        # Auto-detect device
-        if device is None:
-            if torch.cuda.is_available():
-                self.device = "cuda"
-            elif torch.backends.mps.is_available():
-                self.device = "mps"
-            else:
-                self.device = "cpu"
-        else:
-            self.device = device
-            
-        print(f"Loading model {model_name} on {self.device}...")
+        # Get API key from env if not provided
+        self.api_key = api_key or os.environ.get("MISTRAL_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "MISTRAL_API_KEY not found. Set it in environment or pass api_key parameter."
+            )
         
-        # Load tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            trust_remote_code=True
-        )
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-        
-        # Load model
-        model_kwargs = {
-            "trust_remote_code": True,
-            "torch_dtype": torch.float16 if self.device != "cpu" else torch.float32,
-        }
-        
-        if load_in_8bit and self.device == "cuda":
-            model_kwargs["load_in_8bit"] = True
-        else:
-            model_kwargs["device_map"] = self.device
-            
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            **model_kwargs
-        )
-        self.model.eval()
-        print(f"Model loaded successfully.")
+        print(f"Initializing Mistral client with model: {model_name}")
+        self.client = Mistral(api_key=self.api_key)
+        print("Mistral client ready.")
     
-    @torch.no_grad()
     def generate(self, prompt: str) -> str:
         """
         Generate a response for the given prompt.
@@ -79,29 +48,18 @@ class ModelWrapper:
             prompt: Input prompt string
             
         Returns:
-            Generated text (model output only, not including prompt)
+            Generated text from Mistral API
         """
-        inputs = self.tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=2048
-        ).to(self.device)
-        
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=self.max_new_tokens,
-            do_sample=True,
+        chat_response = self.client.chat.complete(
+            model=self.model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            max_tokens=self.max_tokens,
             temperature=0.7,
-            top_p=0.9,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id
         )
         
-        # Decode only the new tokens
-        generated = self.tokenizer.decode(
-            outputs[0][inputs.input_ids.shape[1]:],
-            skip_special_tokens=True
-        )
-        
-        return generated.strip()
+        return chat_response.choices[0].message.content.strip()
