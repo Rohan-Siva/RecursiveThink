@@ -14,10 +14,11 @@ def main():
 Examples:
   python main.py -p "What is the capital of France?"
   python main.py -p "Solve: 2x + 5 = 15" --max-steps 5
-  python main.py -p "Explain quantum entanglement" --model mistralai/Mistral-7B-Instruct-v0.1
+  python main.py -p "Explain recursion" --model mistral-small-latest
 
 Requirements:
-  pip install torch transformers
+  pip install mistralai
+  export MISTRAL_API_KEY="your-api-key"
         """
     )
     
@@ -31,8 +32,8 @@ Requirements:
     parser.add_argument(
         "--model",
         type=str,
-        default="microsoft/phi-2",
-        help="HuggingFace model name (default: microsoft/phi-2)"
+        default="mistral-large-latest",
+        help="Mistral model name (default: mistral-large-latest)"
     )
     
     parser.add_argument(
@@ -56,14 +57,7 @@ Requirements:
         help="Output log file path (default: reasoning.jsonl)"
     )
     
-    parser.add_argument(
-        "--device",
-        type=str,
-        default=None,
-        choices=["cuda", "cpu", "mps"],
-        help="Device to run on (default: auto-detect)"
-    )
-    
+
     args = parser.parse_args()
     
     # Lazy imports to allow --help without dependencies
@@ -85,8 +79,7 @@ Requirements:
     # Initialize components
     try:
         model = ModelWrapper(
-            model_name=args.model,
-            device=args.device
+            model_name=args.model
         )
     except Exception as e:
         print(f"Error loading model: {e}")
