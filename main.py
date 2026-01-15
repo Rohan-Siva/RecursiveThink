@@ -10,11 +10,12 @@ def main():
 Examples:
   python main.py -p "What is the capital of France?"
   python main.py -p "Solve: 2x + 5 = 15" --max-steps 5
-  python main.py -p "Explain recursion" --model mistral-small-latest
+  python main.py -p "Explain recursion" --provider gemini
+  python main.py -p "Complex math" --provider mistral --model mistral-large-latest
 
-Requirements:
-  pip install mistralai
-  export MISTRAL_API_KEY="your-api-key"
+Providers:
+  mistral - Requires MISTRAL_API_KEY env var
+  gemini  - Requires GEMINI_API_KEY env var (uses thinking by default)
         """
     )
     
@@ -26,10 +27,18 @@ Requirements:
     )
     
     parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["mistral", "gemini"],
+        default="gemini",
+        help="LLM provider to use (default: gemini)"
+    )
+    
+    parser.add_argument(
         "--model",
         type=str,
-        default="mistral-large-latest",
-        help="Mistral model name (default: mistral-large-latest)"
+        default=None,
+        help="Model name override (default: provider's default model)"
     )
     
     parser.add_argument(
@@ -57,7 +66,7 @@ Requirements:
     args = parser.parse_args()
     
     from state import ThoughtState
-    from model import ModelWrapper
+    from model import create_model
     from controller import Controller, ControllerConfig
     from logger import ReasoningLogger
     
@@ -65,14 +74,16 @@ Requirements:
     print("Agentic Recursive Reasoning System")
     print("=" * 60)
     print(f"Problem: {args.problem}")
-    print(f"Model: {args.model}")
+    print(f"Provider: {args.provider}")
+    print(f"Model: {args.model or '(default)'}")
     print(f"Max Steps: {args.max_steps}")
     print(f"Confidence Threshold: {args.threshold}")
     print("=" * 60)
     print()
     
     try:
-        model = ModelWrapper(
+        model = create_model(
+            provider=args.provider,
             model_name=args.model
         )
     except Exception as e:
