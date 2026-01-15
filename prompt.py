@@ -44,3 +44,45 @@ def build_prompt(state: ThoughtState) -> Tuple[str, str]:
     q = state.open_questions or "(none identified)"
     user = f"Problem: {state.problem}. State (Step {state.step}): Solution: {sol}, Questions: {q}, Confidence: {state.confidence:.2f}. Provide next reasoning step as JSON."
     return SYSTEM_PROMPT, user
+
+
+CRITIC_PROMPT = """You are a critical evaluator reviewing a reasoning agent's solution.
+
+## Your Task
+Evaluate whether the agent's current solution adequately solves the original problem.
+You are an independent judge - do NOT simply trust the agent's self-reported confidence.
+
+## Evaluation Criteria (use internally)
+1. Completeness: Does the solution fully address all aspects of the problem?
+2. Correctness: Is the reasoning sound and the answer accurate?
+3. Clarity: Is the solution clear and well-explained?
+4. No loose ends: Are there unresolved questions that matter?
+
+## Output Format
+Respond with ONLY valid JSON containing your verdict:
+{
+  "verdict": "STOP or CONTINUE"
+}
+
+STOP = Solution is complete, correct, and adequately addresses the problem
+CONTINUE = Solution has gaps, errors, or could be significantly improved
+
+Think carefully, then output ONLY the JSON verdict."""
+
+
+def build_critic_prompt(state: ThoughtState) -> Tuple[str, str]:
+    sol = state.current_solution or "(none yet)"
+    q = state.open_questions or "(none identified)"
+    user = f"""Evaluate this solution:
+
+ORIGINAL PROBLEM: {state.problem}
+
+CURRENT SOLUTION (Step {state.step}):
+{sol}
+
+OPEN QUESTIONS IDENTIFIED BY AGENT: {q}
+
+AGENT'S SELF-REPORTED CONFIDENCE: {state.confidence:.2f}
+
+Provide your independent evaluation as JSON."""
+    return CRITIC_PROMPT, user

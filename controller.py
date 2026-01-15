@@ -2,9 +2,10 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Tuple, List, Optional
+import json
 
 from state import ThoughtState
-from prompt import build_prompt
+from prompt import build_prompt, build_critic_prompt
 from parser import parse_model_output, ParseResult
 from logger import ReasoningLogger, StepLog
 
@@ -15,6 +16,7 @@ class ControllerConfig:
     confidence_threshold: float = 0.9
     min_change_threshold: float = 0.01
     max_parse_retries: int = 2
+    use_critic: bool = False
 
 
 class Controller:
@@ -63,9 +65,14 @@ class Controller:
                 new_state = state.copy()
                 new_state.step += 1
             
-            should_stop, stop_reason = self._should_stop(
-                new_state, state, decision, parse_result
-            )
+            if self.config.use_critic:
+                should_stop, stop_reason, critic_verdict = self._critic_evaluate(new_state)
+                if critic_verdict:
+                    decision = critic_verdict
+            else:
+                should_stop, stop_reason = self._should_stop(
+                    new_state, state, decision, parse_result
+                )
             
             step_log = StepLog(
                 timestamp=datetime.now().isoformat(),
@@ -81,7 +88,8 @@ class Controller:
             )
             self.logger.log_step(step_log)
             
-            print(f"Step {new_state.step}: decision={decision}, "
+            critic_indicator = " [critic]" if self.config.use_critic else ""
+            print(f"Step {new_state.step}: decision={decision}{critic_indicator}, "
                   f"confidence={new_state.confidence:.2f}")
             
             state = new_state
@@ -99,6 +107,35 @@ class Controller:
         )
         
         return state
+    
+    def _critic_evaluate(self, state: ThoughtState) -> Tuple[bool, str, Optional[str]]:
+        if state.step >= self.config.max_steps:
+            return True, "max_steps_reached", None
+        
+        system_prompt, user_prompt = build_critic_prompt(state)
+        
+        try:
+            model_response = self.model.generate(system_prompt, user_prompt)
+            raw_output = model_response.text
+            
+            raw_output = raw_output.replace("```json", "").replace("```", "")
+            start = raw_output.find("{")
+            end = raw_output.rfind("}") + 1
+            if start != -1 and end > start:
+                json_str = raw_output[start:end]
+                critic_result = json.loads(json_str)
+                
+                verdict = critic_result.get("verdict", "CONTINUE").upper()
+                
+                if verdict == "STOP":
+                    return True, "critic_approved_stop", "STOP"
+                else:
+                    return False, "", "CONTINUE"
+            else:
+                return False, "", None
+                
+        except Exception:
+            return False, "", None
     
     def _should_stop(
         self,

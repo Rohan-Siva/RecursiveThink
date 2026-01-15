@@ -65,6 +65,12 @@ Providers:
         help="Output log file path (default: reasoning.jsonl)"
     )
     
+    parser.add_argument(
+        "--critic",
+        action="store_true",
+        help="Enable critic mode: use LLM to evaluate stopping instead of confidence threshold"
+    )
+    
 
     args = parser.parse_args()
     
@@ -81,6 +87,7 @@ Providers:
     print(f"Model: {args.model or '(default)'}")
     print(f"Max Steps: {args.max_steps}")
     print(f"Confidence Threshold: {args.threshold}")
+    print(f"Critic Mode: {'enabled' if args.critic else 'disabled'}")
     print("=" * 60)
     print()
     
@@ -95,7 +102,8 @@ Providers:
     
     config = ControllerConfig(
         max_steps=args.max_steps,
-        confidence_threshold=args.threshold
+        confidence_threshold=args.threshold,
+        use_critic=args.critic
     )
     
     logger = ReasoningLogger(log_path=args.log_file)
