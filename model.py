@@ -92,46 +92,17 @@ class GeminiWrapper(BaseModel):
     def generate(self, system_prompt: str, user_prompt: str) -> ModelResponse:
         from google.genai import types
         
-        try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    response_logprobs=True,
-                    logprobs=5
-                ),
-                contents=user_prompt
-            )
-        except Exception as e:
-            if "Logprobs" in str(e) or "logprobs" in str(e):
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt
-                    ),
-                    contents=user_prompt
-                )
-            else:
-                raise
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt
+            ),
+            contents=user_prompt
+        )
         
         text = response.text.strip()
         
-        true_confidence = None
-        try:
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'logprobs_result') and candidate.logprobs_result:
-                    logprobs_result = candidate.logprobs_result
-                    if hasattr(logprobs_result, 'chosen_candidates') and logprobs_result.chosen_candidates:
-                        logprob_values = []
-                        for token_info in logprobs_result.chosen_candidates:
-                            if hasattr(token_info, 'log_probability'):
-                                logprob_values.append(token_info.log_probability)
-                        true_confidence = self._calc_confidence_from_logprobs(logprob_values)
-        except Exception:
-            pass
-        
-        return ModelResponse(text=text, true_confidence=true_confidence)
+        return ModelResponse(text=text, true_confidence=None)
 
 
 def create_model(provider: str, model_name: Optional[str] = None) -> BaseModel:
