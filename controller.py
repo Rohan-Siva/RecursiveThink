@@ -42,8 +42,11 @@ class Controller:
             system_prompt, user_prompt = build_prompt(state)
             
             parse_result = None
+            true_confidence = None
             for retry in range(self.config.max_parse_retries + 1):
-                raw_output = self.model.generate(system_prompt, user_prompt)
+                model_response = self.model.generate(system_prompt, user_prompt)
+                raw_output = model_response.text
+                true_confidence = model_response.true_confidence
                 parse_result = parse_model_output(raw_output)
                 
                 if parse_result.success:
@@ -73,7 +76,8 @@ class Controller:
                 parse_error=parse_result.error if parse_result else "No output",
                 decision=decision,
                 stop_reason=stop_reason if should_stop else None,
-                state_after=new_state.to_dict()
+                state_after=new_state.to_dict(),
+                true_confidence=true_confidence
             )
             self.logger.log_step(step_log)
             
