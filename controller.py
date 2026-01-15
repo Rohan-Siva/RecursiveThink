@@ -39,11 +39,11 @@ class Controller:
         stop_reason = None
         
         while True:
-            prompt = build_prompt(state)
+            system_prompt, user_prompt = build_prompt(state)
             
             parse_result = None
             for retry in range(self.config.max_parse_retries + 1):
-                raw_output = self.model.generate(prompt)
+                raw_output = self.model.generate(system_prompt, user_prompt)
                 parse_result = parse_model_output(raw_output)
                 
                 if parse_result.success:
