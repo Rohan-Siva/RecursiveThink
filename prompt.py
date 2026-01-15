@@ -23,8 +23,11 @@ STOP: solution complete, confidence >= 0.9, no further progress possible
 - Begin with { and end with }"""
 
 
-def build_prompt(state: ThoughtState) -> str:
+from typing import Tuple
+
+
+def build_prompt(state: ThoughtState) -> Tuple[str, str]:
     sol = state.current_solution or "(none yet)"
     q = state.open_questions or "(none identified)"
     user = f"Problem: {state.problem}. State (Step {state.step}): Solution: {sol}, Questions: {q}, Confidence: {state.confidence:.2f}. Provide next reasoning step as JSON."
-    return SYSTEM_PROMPT + "\n\n" + user
+    return SYSTEM_PROMPT, user
