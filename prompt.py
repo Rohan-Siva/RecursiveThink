@@ -1,6 +1,3 @@
-"""
-prompt.py - System Prompt Templates for Recursive Reasoning
-"""
 from state import ThoughtState
 
 SYSTEM_PROMPT = """You are a recursive reasoning agent solving problems iteratively.
@@ -27,7 +24,6 @@ STOP: solution complete, confidence >= 0.9, no further progress possible
 
 
 def build_prompt(state: ThoughtState) -> str:
-    """Build the full prompt for the model given current state."""
     sol = state.current_solution or "(none yet)"
     q = state.open_questions or "(none identified)"
     user = f"Problem: {state.problem}. State (Step {state.step}): Solution: {sol}, Questions: {q}, Confidence: {state.confidence:.2f}. Provide next reasoning step as JSON."
