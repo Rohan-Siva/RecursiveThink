@@ -16,6 +16,7 @@ class StepLog:
     decision: Optional[str]
     stop_reason: Optional[str]
     state_after: Dict[str, Any]
+    true_confidence: Optional[float] = None
 
 
 class ReasoningLogger:
