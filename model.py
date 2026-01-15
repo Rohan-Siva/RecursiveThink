@@ -24,13 +24,17 @@ class ModelWrapper:
         self.client = Mistral(api_key=self.api_key)
         print("Mistral client ready.")
     
-    def generate(self, prompt: str) -> str:
+    def generate(self, system_prompt: str, user_prompt: str) -> str:
         chat_response = self.client.chat.complete(
             model=self.model_name,
             messages=[
                 {
+                    "role": "system",
+                    "content": system_prompt,
+                },
+                {
                     "role": "user",
-                    "content": prompt,
+                    "content": user_prompt,
                 }
             ],
             max_tokens=self.max_tokens,
