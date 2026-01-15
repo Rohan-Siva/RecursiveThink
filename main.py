@@ -1,12 +1,8 @@
-"""
-main.py - CLI Entry Point for Recursive Reasoning System
-"""
 import argparse
 import sys
 
 
 def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Agentic Recursive Reasoning System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -60,7 +56,6 @@ Requirements:
 
     args = parser.parse_args()
     
-    # Lazy imports to allow --help without dependencies
     from state import ThoughtState
     from model import ModelWrapper
     from controller import Controller, ControllerConfig
@@ -76,7 +71,6 @@ Requirements:
     print("=" * 60)
     print()
     
-    # Initialize components
     try:
         model = ModelWrapper(
             model_name=args.model
@@ -98,13 +92,11 @@ Requirements:
         logger=logger
     )
     
-    # Run reasoning
     print("Starting recursive reasoning...")
     print("-" * 40)
     
     final_state = controller.run(args.problem)
     
-    # Print results
     print("-" * 40)
     print()
     print("=" * 60)
