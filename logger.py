@@ -40,16 +40,24 @@ class ReasoningLogger:
         stop_reason: str,
         elapsed_time: float
     ) -> None:
+        final_solution_entry = {
+            "type": "final_solution",
+            "solution": final_state.get("current_solution", ""),
+            "confidence": final_state.get("confidence", 0.0)
+        }
+        
         summary = {
             "type": "summary",
             "timestamp": datetime.now().isoformat(),
             "total_steps": total_steps,
             "stop_reason": stop_reason,
             "elapsed_time_seconds": round(elapsed_time, 2),
+            "open_questions": final_state.get("open_questions", ""),
             "final_state": final_state
         }
         
         with open(self.log_path, "a") as f:
+            f.write(json.dumps(final_solution_entry) + "\n")
             f.write(json.dumps(summary) + "\n")
     
     def get_logs(self) -> list:
