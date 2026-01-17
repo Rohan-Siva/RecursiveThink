@@ -1,0 +1,20 @@
+# RecursiveThink Example Commands
+# Run from the project directory with venv activated: source .venv/bin/activate
+
+# 1. EASY - Simple math (1-2 steps)
+python main.py -p "What is 15 * 17?" --provider mistral --max-steps 5
+
+# 2. MEDIUM - Logic puzzle (2-4 steps)
+python main.py -p "Three people check into a hotel room that costs 30 dollars. They each pay 10. Later, the manager realizes it only costs 25 and gives 5 to the bellhop to return. The bellhop keeps 2 and gives 1 back to each guest. Now each guest paid 9 (total 27), the bellhop has 2. Where did the missing dollar go?" --provider mistral --max-steps 8
+
+# 3. HARD - Classic weighing puzzle (4-6 steps)
+python main.py -p "You have 12 balls, one of which is a different weight (either heavier or lighter). Using a balance scale exactly 3 times, how do you find the odd ball and determine if it is heavier or lighter?" --provider mistral --max-steps 15
+
+# 4. COMPLEX - Multi-perspective analysis (4-8 steps)
+python main.py -p "Analyze the trolley problem: a runaway trolley will kill 5 people unless you pull a lever to divert it to another track where it will kill 1 person. What are the ethical considerations from utilitarian, deontological, and virtue ethics perspectives?" --provider mistral --max-steps 10
+
+# WITH CRITIC MODE (uses 2 LLM calls per step for independent verification)
+python main.py -p "What is 15 * 17?" --provider mistral --max-steps 5 --critic
+
+# WITH GEMINI (alternative provider)
+python main.py -p "What is 15 * 17?" --provider gemini --max-steps 5
