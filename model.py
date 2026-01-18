@@ -16,7 +16,7 @@ class ModelResponse:
 
 class BaseModel(ABC):
     @abstractmethod
-    def generate(self, system_prompt: str, user_prompt: str) -> ModelResponse:
+    def generate(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> ModelResponse:
         pass
     
     def _calc_confidence_from_logprobs(self, logprobs: List[float]) -> float:
@@ -50,7 +50,9 @@ class MistralWrapper(BaseModel):
         self.client = Mistral(api_key=self.api_key)
         print("Mistral client ready.")
     
-    def generate(self, system_prompt: str, user_prompt: str) -> ModelResponse:
+    def generate(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> ModelResponse:
+        response_format = {"type": "json_object"} if json_mode else None
+        
         chat_response = self.client.chat.complete(
             model=self.model_name,
             messages=[
@@ -65,6 +67,7 @@ class MistralWrapper(BaseModel):
             ],
             max_tokens=self.max_tokens,
             temperature=0.7,
+            response_format=response_format
         )
         
         text = chat_response.choices[0].message.content.strip()
@@ -92,14 +95,18 @@ class GeminiWrapper(BaseModel):
         self.client = genai.Client(api_key=self.api_key)
         print("Gemini client ready.")
     
-    def generate(self, system_prompt: str, user_prompt: str) -> ModelResponse:
+    def generate(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> ModelResponse:
         from google.genai import types
         
+        config_args = {
+            "system_instruction": system_prompt
+        }
+        if json_mode:
+            config_args["response_mime_type"] = "application/json"
+            
         response = self.client.models.generate_content(
             model=self.model_name,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt
-            ),
+            config=types.GenerateContentConfig(**config_args),
             contents=user_prompt
         )
         

@@ -46,7 +46,7 @@ class Controller:
             parse_result = None
             true_confidence = None
             for retry in range(self.config.max_parse_retries + 1):
-                model_response = self.model.generate(system_prompt, user_prompt)
+                model_response = self.model.generate(system_prompt, user_prompt, json_mode=True)
                 raw_output = model_response.text
                 true_confidence = model_response.true_confidence
                 parse_result = parse_model_output(raw_output)
@@ -115,7 +115,7 @@ class Controller:
         system_prompt, user_prompt = build_critic_prompt(state)
         
         try:
-            model_response = self.model.generate(system_prompt, user_prompt)
+            model_response = self.model.generate(system_prompt, user_prompt, json_mode=True)
             raw_output = model_response.text
             
             raw_output = raw_output.replace("```json", "").replace("```", "")
