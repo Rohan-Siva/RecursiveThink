@@ -3,6 +3,9 @@ import math
 from dataclasses import dataclass
 from typing import Optional, List
 from abc import ABC, abstractmethod
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @dataclass
