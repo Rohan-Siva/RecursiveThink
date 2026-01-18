@@ -19,7 +19,7 @@ Respond with ONLY valid JSON:
   "analysis": "Your reasoning for this step (1-3 paragraphs max)",
   "decision": "CONTINUE or STOP",
   "updated_state": {
-    "current_solution": "Your updated/refined solution",
+    "current_solution": "Your updated/refined solution with final answer in \\\\boxed{answer}",
     "open_questions": "Remaining questions or uncertainties",
     "confidence": 0.0 to 1.0
   }
@@ -33,6 +33,9 @@ STOP: solution complete, confidence >= 0.9, no further progress possible
 - Output ONLY valid JSON
 - Begin with { and end with }
 - Build upon previous solution, don't start from scratch each step
+- For math problems, ALWAYS put your final numerical answer inside \\\\boxed{} (e.g., \\\\boxed{42})
+- The boxed answer should be the final simplified value only
+- IMPORTANT: Since you output JSON, use double backslash (\\\\boxed{}) so it parses correctly
 """
 
 
