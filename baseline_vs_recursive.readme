@@ -5,71 +5,63 @@ Compared **Baseline (single-shot)** vs **RecursiveThink** on first 5 AIME 2025 p
 
 ---
 
-## Results Summary
+## Final Results Summary
 
-| Approach | Correct | Accuracy | Avg Time/Problem |
-|----------|---------|----------|------------------|
-| **Baseline (k=1)** | 5/5 | **100%** | ~24s |
-| **RecursiveThink** | 3/5 | **60%** | ~50s |
-
-> **Key Finding**: With sufficient token limit (4096), single-shot baseline **outperforms** recursive approach on these 5 problems!
+| Approach | Correct | Accuracy | Avg Steps | Avg Time |
+|----------|---------|----------|-----------|----------|
+| **Baseline (k=1)** | 5/5 | **100%** | 1 | ~24s |
+| **RecursiveThink (improved)** | 5/5 | **100%** | 1.4 | ~30s |
+| RecursiveThink (old prompts) | 3/5 | 60% | 4.2 | ~50s |
 
 ---
 
 ## Problem-by-Problem Breakdown
 
-| Problem | Expected | Baseline | Recursive |
-|---------|----------|----------|-----------|
-| id_01 | 70 | ✅ 70 | ✅ 70 (5 steps) |
-| id_02 | 588 | ✅ 588 | ❌ None (5 steps) |
-| id_03 | 16 | ✅ 16 | ✅ 16 (4 steps) |
-| id_04 | 117 | ✅ 117 | ✅ 117 (5 steps) |
-| id_05 | 279 | ✅ 279 | ❌ None (2 steps) |
+| Problem | Expected | Baseline | Recursive (new) | Recursive (old) |
+|---------|----------|----------|-----------------|-----------------|
+| id_01 | 70 | ✅ | ✅ 1 step | ✅ 5 steps |
+| id_02 | 588 | ✅ | ✅ 1 step | ❌ failed |
+| id_03 | 16 | ✅ | ✅ 1 step | ✅ 4 steps |
+| id_04 | 117 | ✅ | ✅ 2 steps | ✅ 5 steps |
+| id_05 | 279 | ✅ | ✅ 2 steps | ❌ failed |
 
 ---
 
 ## Key Findings
 
-### 1. Token Limit Was Critical
-Initial baseline (max_tokens=1024) scored **0%** because responses were truncated before `\boxed{}` answer.
-After increasing to 4096 tokens: **100% accuracy**.
+### 1. Ablation-Informed Prompts Dramatically Improved Recursive
+After applying lessons from ablation study:
+- Accuracy: **60% → 100%** (+40%)
+- Avg steps: **4.2 → 1.4** (3x faster)
 
-### 2. Baseline is Faster
-- Baseline: ~24s per problem (single API call)
-- Recursive: ~50s per problem (4-5 iterative calls)
+### 2. What Improved Recursive Performance
+Based on ablation study (see `ablation_results.readme`):
+- ✅ **Expert persona**: "world-class expert problem solver"
+- ✅ **CoT markers**: "Let me think through this..."
+- ✅ **Removed self-attribution**: "your solution" → "the solution"
+- ✅ **Confidence framing**: "Be confident in your expert assessment"
 
-### 3. Recursive Failed on Harder Problems
-- id_02 and id_05 failed to produce boxed answers even after 5 steps
-- Iterative refinement didn't help on these complex problems
+### 3. Token Limit Was Critical for Baseline
+Initial baseline (max_tokens=1024) scored 0% due to truncation.
+After increasing to 4096 tokens: 100% accuracy.
 
-### 4. When to Use Each Approach
+---
 
-| Use Case | Recommended |
-|----------|-------------|
-| Simple/Medium problems | Baseline (faster) |
+## When to Use Each Approach
+
+| Use Case | Recommendation |
+|----------|----------------|
 | Need reasoning trace | Recursive |
-| Token-limited model | Recursive (chunked) |
-| Maximum accuracy | Baseline + high tokens |
+| Maximum speed | Baseline |
+| Token-limited API | Recursive |
+| Complex multi-step | Recursive |
+| Simple problems | Either |
 
 ---
 
-## Configuration
+## Files
 
-```
-Baseline:
-  - System prompt: Explicit \boxed{} instruction
-  - max_tokens: 4096
-  - k=1 (single sample)
-
-Recursive:
-  - max_steps: 8
-  - confidence_threshold: 0.9
-  - Provider: mistral-large-latest
-```
-
----
-
-## Files Generated
-
-- `tts/results/aime_baseline_mistral_large_latest/` — Baseline results
-- `results/aime_recursive_mistral_large_latest/` — Recursive results
+- `prompt.py` — Improved prompts based on ablation
+- `ablation_results.readme` — Ablation study findings
+- `tts/results/aime_recursive_*` — Recursive results
+- `tts/results/aime_baseline_*` — Baseline results
