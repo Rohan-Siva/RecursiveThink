@@ -9,55 +9,67 @@ Compared **Baseline (single-shot)** vs **RecursiveThink** on first 5 AIME 2025 p
 
 | Approach | Correct | Accuracy | Avg Time/Problem |
 |----------|---------|----------|------------------|
+| **Baseline (k=1)** | 5/5 | **100%** | ~24s |
 | **RecursiveThink** | 3/5 | **60%** | ~50s |
-| **Baseline (k=1)** | 0/5 | **0%** | ~12s |
+
+> **Key Finding**: With sufficient token limit (4096), single-shot baseline **outperforms** recursive approach on these 5 problems!
 
 ---
 
 ## Problem-by-Problem Breakdown
 
-| Problem | Expected | Recursive | Baseline |
-|---------|----------|-----------|----------|
-| id_01 | 70 | ✅ 70 (5 steps) | ❌ None |
-| id_02 | 588 | ❌ None (5 steps) | ❌ None |
-| id_03 | 16 | ✅ 16 (4 steps) | ❌ None |
-| id_04 | 117 | ✅ 117 (5 steps) | ❌ None |
-| id_05 | 279 | ❌ None (2 steps) | ❌ None |
+| Problem | Expected | Baseline | Recursive |
+|---------|----------|----------|-----------|
+| id_01 | 70 | ✅ 70 | ✅ 70 (5 steps) |
+| id_02 | 588 | ✅ 588 | ❌ None (5 steps) |
+| id_03 | 16 | ✅ 16 | ✅ 16 (4 steps) |
+| id_04 | 117 | ✅ 117 | ✅ 117 (5 steps) |
+| id_05 | 279 | ✅ 279 | ❌ None (2 steps) |
 
 ---
 
 ## Key Findings
 
-### 1. Recursive Approach Significantly Outperforms Baseline
-- **60% vs 0%** accuracy on same problems
-- Iterative refinement helps model arrive at correct answers
+### 1. Token Limit Was Critical
+Initial baseline (max_tokens=1024) scored **0%** because responses were truncated before `\boxed{}` answer.
+After increasing to 4096 tokens: **100% accuracy**.
 
-### 2. Baseline Fails to Format Answers
-The single-shot baseline failed to extract any answers because the model didn't consistently use `\\boxed{}` format without the structured JSON output requirement.
+### 2. Baseline is Faster
+- Baseline: ~24s per problem (single API call)
+- Recursive: ~50s per problem (4-5 iterative calls)
 
-### 3. Iterative Confidence Building Works
-Recursive approach started with low confidence (0.3-0.4) and iteratively refined to 0.95:
-- id_01: 0.40 → 0.60 → 0.70 → ... → 0.95 ✅
-- id_03: 0.30 → 0.50 → 0.75 → 0.95 ✅
-- id_04: 0.30 → 0.70 → 0.85 → 0.95 ✅
+### 3. Recursive Failed on Harder Problems
+- id_02 and id_05 failed to produce boxed answers even after 5 steps
+- Iterative refinement didn't help on these complex problems
 
-### 4. Some Problems Remain Hard
-Both approaches failed on id_02 (588) and id_05 (279), suggesting these require either:
-- More reasoning steps
-- Different problem-solving strategies
-- Or are genuinely beyond model capability
+### 4. When to Use Each Approach
+
+| Use Case | Recommended |
+|----------|-------------|
+| Simple/Medium problems | Baseline (faster) |
+| Need reasoning trace | Recursive |
+| Token-limited model | Recursive (chunked) |
+| Maximum accuracy | Baseline + high tokens |
 
 ---
 
-## Recommendations
+## Configuration
 
-1. **Use RecursiveThink for complex math** — significantly better than single-shot
-2. **Increase max_steps for harder problems** — id_02 may have succeeded with more iterations
-3. **Consider Pass@k > 1 for baseline** — multiple samples may help
+```
+Baseline:
+  - System prompt: Explicit \boxed{} instruction
+  - max_tokens: 4096
+  - k=1 (single sample)
+
+Recursive:
+  - max_steps: 8
+  - confidence_threshold: 0.9
+  - Provider: mistral-large-latest
+```
 
 ---
 
 ## Files Generated
 
+- `tts/results/aime_baseline_mistral_large_latest/` — Baseline results
 - `results/aime_recursive_mistral_large_latest/` — Recursive results
-- `results/aime_baseline_mistral_large_latest/` — Baseline results
