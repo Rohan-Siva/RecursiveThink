@@ -32,7 +32,7 @@ class MistralWrapper(BaseModel):
     def __init__(
         self,
         model_name: str = "mistral-large-latest",
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
         api_key: Optional[str] = None
     ):
         from mistralai import Mistral
