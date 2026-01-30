@@ -1,0 +1,70 @@
+# Ablation Study: Prompt Variant Comparison
+
+## Overview
+Compared **6 prompt variants** across **5 diverse problems** using Mistral `mistral-large-latest`.
+
+## Results Summary
+
+| Variant | Avg Steps | Avg Confidence | Avg Time | Efficiency |
+|---------|-----------|----------------|----------|------------|
+| **expert** | 1.0 | 0.978 | 5.20s | ⭐ Best |
+| **chain_of_thought** | 1.0 | 0.992 | 9.10s | Highest conf |
+| **step_by_step** | 1.2 | 0.970 | 5.54s | Fast |
+| **anonymous** | 1.8 | 0.950 | 8.00s | Balanced |
+| **own** | 2.6 | 0.930 | 12.62s | Slow |
+| **minimal** | 3.4 | 0.950 | 11.09s | ❌ Worst |
+
+---
+
+## Key Findings
+
+### 1. Expert & Chain-of-Thought Dominate
+Both solved all problems in **1 step** with highest confidence (0.978-0.992).
+
+### 2. Self-Attribution ("own") Hurts Performance
+Telling the model it's building on "YOUR previous reasoning" caused:
+- Lower initial confidence (0.3-0.5)
+- **2.6x more steps** than expert/CoT
+
+### 3. Minimal Prompts Require More Iterations
+- Started with moderate confidence (0.5-0.7)
+- Got "stuck" at 0.85 on probability problem (8 steps!)
+
+---
+
+## Prompt Variants Tested
+
+1. **own** - Self-attributed: "YOUR previous reasoning"
+2. **anonymous** - Neutral: "the previous solution"  
+3. **step_by_step** - Explicit instructions: "1. Read problem, 2. Identify knowns..."
+4. **minimal** - Bare essentials only
+5. **expert** - Expert persona: "You are a world-class problem solver"
+6. **chain_of_thought** - Explicit CoT: "Let me think through this..."
+
+---
+
+## Problem-Level Analysis
+
+| Problem | Type | Best | Worst |
+|---------|------|------|-------|
+| 15×17 | math | all ✓ | own (2 steps) |
+| 3x+7=22 | algebra | all ✓ | minimal (3 steps) |
+| Hotel riddle | logic | all ✓ | own (3 steps) |
+| Train meeting | word problem | all ✓ | own (4 steps) |
+| Ball probability | probability | all ✓ | minimal (8 steps!) |
+
+---
+
+## Recommendations
+
+1. **Use `expert` or `chain_of_thought`** for production — fastest, highest confidence
+2. **Avoid self-attribution** — causes unnecessary caution
+3. **Minimal prompts** work but need more iterations
+
+---
+
+## Files
+
+- `ablation_all_variants_results.jsonl` — Detailed per-problem results
+- `ablation_all_variants_results_summary.json` — Variant-level metrics
+- `ablation_test_problems.jsonl` — Test problems used
