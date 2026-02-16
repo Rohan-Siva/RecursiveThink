@@ -84,6 +84,26 @@ Providers:
         help="Number of samples for uncertainty estimation (default: 5)"
     )
 
+    parser.add_argument(
+        "--branching",
+        action="store_true",
+        help="Enable uncertainty-guided branching: decompose into subgoals, branch on uncertain ones"
+    )
+
+    parser.add_argument(
+        "--branch-threshold",
+        type=float,
+        default=0.8,
+        help="Confidence threshold below which to branch (default: 0.8)"
+    )
+
+    parser.add_argument(
+        "--branch-steps",
+        type=int,
+        default=2,
+        help="Verification steps per branch (default: 2)"
+    )
+
     args = parser.parse_args()
     
     from state import ThoughtState
@@ -103,6 +123,10 @@ Providers:
     print(f"Uncertainty Mode: {'enabled' if args.uncertainty else 'disabled'}")
     if args.uncertainty:
         print(f"Uncertainty Samples: {args.uncertainty_samples}")
+    print(f"Branching Mode: {'enabled' if args.branching else 'disabled'}")
+    if args.branching:
+        print(f"Branch Threshold: {args.branch_threshold}")
+        print(f"Branch Verification Steps: {args.branch_steps}")
     print("=" * 60)
     print()
     
@@ -114,45 +138,90 @@ Providers:
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit(1)
-    
-    config = ControllerConfig(
-        max_steps=args.max_steps,
-        confidence_threshold=args.threshold,
-        use_critic=args.critic,
-        use_uncertainty=args.uncertainty,
-        uncertainty_samples=args.uncertainty_samples,
-    )
-    
+
     logger = ReasoningLogger(log_path=args.log_file)
-    
-    controller = Controller(
-        model=model,
-        config=config,
-        logger=logger
-    )
-    
-    print("Starting recursive reasoning...")
-    print("-" * 40)
-    
-    final_state = controller.run(args.problem)
-    
-    print("-" * 40)
-    print()
-    print("=" * 60)
-    print("FINAL ANSWER")
-    print("=" * 60)
-    print(final_state.current_solution)
-    print()
-    print("=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print(f"Total Steps: {final_state.step}")
-    print(f"Final Confidence: {final_state.confidence:.2f}")
-    open_q = final_state.open_questions or "None"
-    print(f"Open Questions: {open_q}")
-    print(f"Log File: {args.log_file}")
-    print("=" * 60)
+
+    if args.branching:
+        from branching_controller import BranchingController, BranchingConfig
+
+        branch_config = BranchingConfig(
+            branch_threshold=args.branch_threshold,
+            num_samples=args.uncertainty_samples,
+            max_branches=3,
+            branch_verification_steps=args.branch_steps,
+            final_check_samples=args.uncertainty_samples,
+        )
+
+        controller = BranchingController(
+            model=model,
+            config=branch_config,
+            logger=logger,
+        )
+
+        print("Starting branching recursive reasoning...")
+        print("-" * 40)
+
+        final_state, subgoals = controller.run(args.problem)
+
+        print("-" * 40)
+        print()
+        print("=" * 60)
+        print("FINAL ANSWER")
+        print("=" * 60)
+        print(final_state.current_solution)
+        print()
+        print("=" * 60)
+        print("SUMMARY")
+        print("=" * 60)
+        print(f"Total Subgoals: {len(subgoals)}")
+        print(f"Final Confidence: {final_state.confidence:.2f}")
+        print(f"API Calls: {controller.api_calls}")
+        branched = [sg for sg in subgoals if sg.branches]
+        print(f"Subgoals Branched: {len(branched)}/{len(subgoals)}")
+        for sg in subgoals:
+            marker = " ⚡" if sg.branches else ""
+            print(f"  {sg.subgoal_id}. conf={sg.confidence:.2f}{marker} {sg.description[:60]}")
+        print(f"Log File: {args.log_file}")
+        print("=" * 60)
+
+    else:
+        config = ControllerConfig(
+            max_steps=args.max_steps,
+            confidence_threshold=args.threshold,
+            use_critic=args.critic,
+            use_uncertainty=args.uncertainty,
+            uncertainty_samples=args.uncertainty_samples,
+        )
+
+        controller = Controller(
+            model=model,
+            config=config,
+            logger=logger
+        )
+
+        print("Starting recursive reasoning...")
+        print("-" * 40)
+
+        final_state = controller.run(args.problem)
+
+        print("-" * 40)
+        print()
+        print("=" * 60)
+        print("FINAL ANSWER")
+        print("=" * 60)
+        print(final_state.current_solution)
+        print()
+        print("=" * 60)
+        print("SUMMARY")
+        print("=" * 60)
+        print(f"Total Steps: {final_state.step}")
+        print(f"Final Confidence: {final_state.confidence:.2f}")
+        open_q = final_state.open_questions or "None"
+        print(f"Open Questions: {open_q}")
+        print(f"Log File: {args.log_file}")
+        print("=" * 60)
 
 
 if __name__ == "__main__":
     main()
+
