@@ -235,6 +235,33 @@ def main():
               f"Branched: {result.get('subgoals_branched', 'N/A')} | "
               f"API Calls: {api}")
 
+        partial_accuracy = correct_count / len(all_results) if all_results else 0
+        partial_file = results_dir / f"aime2025_branching_{model_save_name}_exp{args.exp_id}_partial.json"
+        partial_data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "provider": args.provider,
+                "model": model_name,
+                "num_samples": args.num_samples,
+                "branch_threshold": args.branch_threshold,
+                "branch_steps": args.branch_steps,
+                "max_branches": args.max_branches,
+                "exp_id": args.exp_id,
+                "status": "in_progress",
+                "completed": len(all_results),
+                "total_planned": len(questions),
+            },
+            "summary": {
+                "total_problems": len(all_results),
+                "correct": correct_count,
+                "accuracy": round(partial_accuracy, 4),
+                "total_api_calls": total_api_calls,
+            },
+            "results": all_results,
+        }
+        with open(partial_file, "w") as f:
+            json.dump(partial_data, f, indent=2)
+
     accuracy = correct_count / len(questions) if questions else 0
 
     output_file = results_dir / f"aime2025_branching_{model_save_name}_exp{args.exp_id}.json"
