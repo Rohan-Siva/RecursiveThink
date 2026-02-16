@@ -28,11 +28,11 @@ class BaseModel(ABC):
 
 
 class MistralWrapper(BaseModel):
-    
+
     def __init__(
         self,
         model_name: str = "mistral-large-latest",
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
         api_key: Optional[str] = None
     ):
         from mistralai import Mistral

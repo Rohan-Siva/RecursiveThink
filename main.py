@@ -70,7 +70,19 @@ Providers:
         action="store_true",
         help="Enable critic mode: use LLM to evaluate stopping instead of confidence threshold"
     )
-    
+
+    parser.add_argument(
+        "--uncertainty",
+        action="store_true",
+        help="Enable sampling-based uncertainty: measure confidence via response consistency instead of self-reported scores"
+    )
+
+    parser.add_argument(
+        "--uncertainty-samples",
+        type=int,
+        default=5,
+        help="Number of samples for uncertainty estimation (default: 5)"
+    )
 
     args = parser.parse_args()
     
@@ -88,6 +100,9 @@ Providers:
     print(f"Max Steps: {args.max_steps}")
     print(f"Confidence Threshold: {args.threshold}")
     print(f"Critic Mode: {'enabled' if args.critic else 'disabled'}")
+    print(f"Uncertainty Mode: {'enabled' if args.uncertainty else 'disabled'}")
+    if args.uncertainty:
+        print(f"Uncertainty Samples: {args.uncertainty_samples}")
     print("=" * 60)
     print()
     
@@ -103,7 +118,9 @@ Providers:
     config = ControllerConfig(
         max_steps=args.max_steps,
         confidence_threshold=args.threshold,
-        use_critic=args.critic
+        use_critic=args.critic,
+        use_uncertainty=args.uncertainty,
+        uncertainty_samples=args.uncertainty_samples,
     )
     
     logger = ReasoningLogger(log_path=args.log_file)

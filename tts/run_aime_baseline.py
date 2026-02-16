@@ -1,4 +1,3 @@
-import os
 import sys
 import json
 import time
@@ -8,11 +7,33 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import numpy as np
 import datasets
-from tqdm import tqdm
 
 from model import create_model
 from tts.math_grader import extract_answer, grade
+
+
+def estimate_pass_at_k(num_samples, num_correct, k):
+    """Estimates pass@k of each problem and returns them in an array."""
+
+    def estimator(n: int, c: int, k: int) -> float:
+        """Calculates 1 - comb(n - c, k) / comb(n, k)."""
+        if n - c < k:
+            return 1.0
+        return 1.0 - np.prod(1.0 - k / np.arange(n - c + 1, n + 1))
+
+    import itertools
+
+    if isinstance(num_samples, int):
+        num_samples_it = itertools.repeat(num_samples, len(num_correct))
+    else:
+        assert len(num_samples) == len(num_correct)
+        num_samples_it = iter(num_samples)
+
+    return np.array(
+        [estimator(int(n), int(c), k) for n, c in zip(num_samples_it, num_correct)]
+    )
 
 
 def run_baseline_problem(
@@ -22,6 +43,7 @@ def run_baseline_problem(
     model,
     system_prompt: str,
     k: int,
+    save_callback=None,
 ) -> dict:
 
     samples = []
@@ -32,32 +54,54 @@ def run_baseline_problem(
         try:
             response = model.generate(system_prompt=system_prompt, user_prompt=problem)
             raw_output = response.text
-            
+
             model_raw_answer = extract_answer(raw_output)
             is_correct = False
             if model_raw_answer is not None:
                 is_correct = grade(model_raw_answer, str(answer))
-            
+
             if is_correct:
                 correct_count += 1
-                
+
             samples.append({
-                "attempt": attempt,
+                "attempt": attempt + 1,
                 "model_output": raw_output,
                 "model_raw_answer": model_raw_answer,
                 "is_correct": is_correct,
             })
         except Exception as e:
             samples.append({
-                "attempt": attempt,
+                "attempt": attempt + 1,
                 "error": str(e),
                 "is_correct": False,
             })
-    
+
+        # Print progress for each attempt
+        print(f"    Attempt {attempt + 1}/{k}: {correct_count}/{attempt + 1} correct", end="")
+        if samples[-1].get("is_correct"):
+            print(" ✓")
+        else:
+            print(f" (got: {samples[-1].get('model_raw_answer', 'error')}, expected: {answer})")
+
+        # Save intermediate result after each attempt
+        if save_callback:
+            partial_result = {
+                "question_id": question_id,
+                "question_content": problem,
+                "answer": answer,
+                "samples": samples.copy(),
+                "correct_count": correct_count,
+                "attempts_completed": attempt + 1,
+                "k": k,
+                "pass_at_k": correct_count > 0,
+                "in_progress": attempt + 1 < k,
+            }
+            save_callback(partial_result)
+
     elapsed = time.time() - start_time
-    
+
     any_correct = correct_count > 0
-    
+
     return {
         "question_id": question_id,
         "question_content": problem,
@@ -163,13 +207,53 @@ The answer inside the box should be ONLY the final number, nothing else."""
 
     all_results = []
     pass_count = 0
+    correct_counts = []  # Track correct count for each problem for pass@k estimation
 
-    for question, answer, question_id in tqdm(
-        zip(questions, answers, question_ids),
-        total=len(questions),
-        desc="Evaluating"
+    # Incremental save file
+    output_file = results_dir / f"aime2025_baseline_{model_save_name}_exp{args.exp_id}_k{args.samples}.json"
+
+    def save_intermediate(partial_result):
+        """Save intermediate results after each attempt."""
+
+        # Build current results list with partial current problem
+        results_to_save = all_results.copy()
+        results_to_save.append(partial_result)
+
+        # Calculate current stats
+        current_pass_count = pass_count + (1 if partial_result["pass_at_k"] else 0)
+        current_correct_counts = correct_counts.copy()
+        current_correct_counts.append(partial_result["correct_count"])
+
+        partial_summary = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "provider": args.provider,
+                "model": model_name,
+                "k": args.samples,
+                "exp_id": args.exp_id,
+                "status": "in_progress",
+            },
+            "summary": {
+                "completed_problems": len(all_results),
+                "current_problem": partial_result["question_id"],
+                "current_attempts": f"{partial_result['attempts_completed']}/{args.samples}",
+                "current_correct": f"{partial_result['correct_count']}/{partial_result['attempts_completed']}",
+                "total_problems": len(questions),
+                "pass_at_k_count": current_pass_count,
+                "pass_at_k_accuracy": round(current_pass_count / len(results_to_save), 4) if results_to_save else 0,
+            },
+            "per_problem_correct_counts": current_correct_counts,
+            "results": results_to_save,
+        }
+        with open(output_file, "w") as f:
+            json.dump(partial_summary, f, indent=2)
+
+    for idx, (question, answer, question_id) in enumerate(
+        zip(questions, answers, question_ids)
     ):
-        print(f"\n--- {question_id} ---")
+        print(f"\n{'=' * 40}")
+        print(f"Problem {idx + 1}/{len(questions)}: {question_id}")
+        print(f"{'=' * 40}")
 
         result = run_baseline_problem(
             problem=question,
@@ -178,9 +262,11 @@ The answer inside the box should be ONLY the final number, nothing else."""
             model=model,
             system_prompt=system_prompt,
             k=args.samples,
+            save_callback=save_intermediate,
         )
 
         all_results.append(result)
+        correct_counts.append(result["correct_count"])
 
         if result["pass_at_k"]:
             pass_count += 1
@@ -188,17 +274,46 @@ The answer inside the box should be ONLY the final number, nothing else."""
         else:
             status = "FAIL"
 
-        best_answer = None
-        for s in result["samples"]:
-            if s.get("is_correct"):
-                best_answer = s.get("model_raw_answer")
-                break
-            if best_answer is None:
-                best_answer = s.get("model_raw_answer")
-                
-        print(f"  Answer: {best_answer} | Expected: {answer} | {status} ({result['correct_count']}/{args.samples})")
+        print(f"\n  >> {question_id} FINAL: {result['correct_count']}/{args.samples} correct | {status}")
+
+        # Save after each completed problem
+        partial_summary = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "provider": args.provider,
+                "model": model_name,
+                "k": args.samples,
+                "exp_id": args.exp_id,
+                "status": "in_progress",
+            },
+            "summary": {
+                "completed_problems": len(all_results),
+                "total_problems": len(questions),
+                "pass_at_k_count": pass_count,
+                "pass_at_k_accuracy": round(pass_count / len(all_results), 4) if all_results else 0,
+            },
+            "per_problem_correct_counts": correct_counts,
+            "results": all_results,
+        }
+        with open(output_file, "w") as f:
+            json.dump(partial_summary, f, indent=2)
 
     accuracy = pass_count / len(questions) if questions else 0
+
+    # Compute pass@k estimates using the statistical estimator
+    correct_counts_arr = np.array(correct_counts)
+    pass_at_1 = estimate_pass_at_k(args.samples, correct_counts_arr, 1).mean()
+    pass_at_k = estimate_pass_at_k(args.samples, correct_counts_arr, args.samples).mean()
+
+    # Also compute pass@k for intermediate k values if k >= 4
+    pass_at_estimates = {"pass@1": round(float(pass_at_1), 4)}
+    if args.samples >= 4:
+        pass_at_4 = estimate_pass_at_k(args.samples, correct_counts_arr, 4).mean()
+        pass_at_estimates["pass@4"] = round(float(pass_at_4), 4)
+    if args.samples >= 8:
+        pass_at_8 = estimate_pass_at_k(args.samples, correct_counts_arr, 8).mean()
+        pass_at_estimates["pass@8"] = round(float(pass_at_8), 4)
+    pass_at_estimates[f"pass@{args.samples}"] = round(float(pass_at_k), 4)
 
     output_file = results_dir / f"aime2025_baseline_{model_save_name}_exp{args.exp_id}_k{args.samples}.json"
 
@@ -212,9 +327,15 @@ The answer inside the box should be ONLY the final number, nothing else."""
         },
         "summary": {
             "total_problems": len(questions),
-            "pass_at_k": pass_count,
-            "accuracy": round(accuracy, 4),
+            "pass_at_k_count": pass_count,
+            "pass_at_k_accuracy": round(accuracy, 4),
+            "pass_at_k_estimates": pass_at_estimates,
         },
+        "per_problem_correct_counts": correct_counts,
+        "per_problem_summary": [
+            {"question_id": r["question_id"], "correct": r["correct_count"], "total": args.samples}
+            for r in all_results
+        ],
         "results": all_results,
     }
 
@@ -224,8 +345,16 @@ The answer inside the box should be ONLY the final number, nothing else."""
     print("\n" + "=" * 60)
     print("BASELINE EVALUATION COMPLETE")
     print("=" * 60)
-    print(f"Pass@{args.samples}: {pass_count}/{len(questions)} = {accuracy:.2%}")
-    print(f"Results saved to: {output_file}")
+    print(f"Total Problems: {len(questions)}")
+    print(f"\nPer-problem correct counts (out of {args.samples}):")
+    for r in all_results:
+        status = "✓" if r["pass_at_k"] else "✗"
+        print(f"  {r['question_id']}: {r['correct_count']}/{args.samples} {status}")
+    print(f"\nPass@k Estimates (statistical):")
+    for k_name, k_val in pass_at_estimates.items():
+        print(f"  {k_name}: {k_val:.2%}")
+    print(f"\nRaw Pass@{args.samples}: {pass_count}/{len(questions)} = {accuracy:.2%}")
+    print(f"\nResults saved to: {output_file}")
     print("=" * 60)
 
 

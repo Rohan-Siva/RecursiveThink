@@ -117,6 +117,17 @@ def main():
         help="Enable critic mode for stopping decisions"
     )
     parser.add_argument(
+        "--uncertainty",
+        action="store_true",
+        help="Enable sampling-based uncertainty: measure confidence via response consistency"
+    )
+    parser.add_argument(
+        "--uncertainty-samples",
+        type=int,
+        default=5,
+        help="Number of samples for uncertainty estimation (default: 5)"
+    )
+    parser.add_argument(
         "--num-problems",
         type=int,
         default=None,
@@ -165,7 +176,10 @@ def main():
     config = ControllerConfig(
         max_steps=args.max_steps,
         confidence_threshold=args.threshold,
-        use_critic=args.critic
+        use_critic=args.critic,
+        use_uncertainty=args.uncertainty,
+        uncertainty_samples=args.uncertainty_samples,
+        answer_extractor=extract_answer,
     )
 
     model_name = args.model or ("gemini-2.5-flash" if args.provider == "gemini" else "mistral-large-latest")
@@ -186,6 +200,9 @@ def main():
     print(f"Max Steps: {args.max_steps}")
     print(f"Confidence Threshold: {args.threshold}")
     print(f"Critic Mode: {'enabled' if args.critic else 'disabled'}")
+    print(f"Uncertainty Mode: {'enabled' if args.uncertainty else 'disabled'}")
+    if args.uncertainty:
+        print(f"Uncertainty Samples: {args.uncertainty_samples}")
     print("=" * 60)
 
     all_results = []
@@ -230,6 +247,8 @@ def main():
             "max_steps": args.max_steps,
             "confidence_threshold": args.threshold,
             "critic_mode": args.critic,
+            "uncertainty_mode": args.uncertainty,
+            "uncertainty_samples": args.uncertainty_samples if args.uncertainty else None,
             "exp_id": args.exp_id,
         },
         "summary": {
