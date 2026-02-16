@@ -17,6 +17,10 @@ from parser import parse_model_output
 
 
 def extract_boxed_answer(solution: str) -> Optional[str]:
+    if solution is None:
+        return None
+    if not isinstance(solution, str):
+        solution = str(solution)
     match = re.search(r"\\+boxed\{([^}]+)\}", solution)
     if match:
         return match.group(1).strip()
